@@ -1,10 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,18 +12,16 @@ import (
 
 func TestMainHandlerWhenCountMoreThanTotal(t *testing.T) {
 	totalCount := 4
-	req := httptest.NewRequest("GET", "/cafe?count=5&city=moscow", nil) // запрос к сервису
+	req := httptest.NewRequest("GET", "/cafe?count=9&city=moscow", nil) // запрос к сервису
 
-	countStr := req.URL.Query().Get("count")
-	count, _ := strconv.Atoi(countStr)
+	responseRecorder := httptest.NewRecorder()
+	handler := http.HandlerFunc(mainHandle)
+	handler.ServeHTTP(responseRecorder, req)
 
-	//необходимые проверки
+	// необходимые проверки
 
-	if assert.LessOrEqual(t, count, totalCount) != true {
-		for _, cafe := range cafeList["moscow"] {
-			fmt.Println(cafe)
-		}
-	}
+	res := strings.Split(responseRecorder.Body.String(), ",")
+	assert.Equal(t, totalCount, len(res))
 
 }
 func TestMainHandlerWhenOk(t *testing.T) {
@@ -40,16 +37,14 @@ func TestMainHandlerWhenOk(t *testing.T) {
 
 }
 func TestMainHandlerWhenCityNotIsMoscow(t *testing.T) {
-	req := httptest.NewRequest("GET", "/cafe?count=4&city=Ryazan", nil) // запрос к сервису
+	req := httptest.NewRequest("GET", "/cafe?count=4&city=UnExistsCity", nil) // запрос к сервису
 
 	responseRecorder := httptest.NewRecorder()
 	handler := http.HandlerFunc(mainHandle)
 	handler.ServeHTTP(responseRecorder, req)
 
-	city := req.URL.Query().Get("city")
-
 	// необходимые проверки
-	if assert.Equal(t, "moscow", city) == false {
-		t.Errorf("StatusCode: %d. Wrong city value", responseRecorder.Code)
-	}
+	assert.Equal(t, http.StatusBadRequest, responseRecorder.Code)
+	assert.Equal(t, "wrong city value", responseRecorder.Body.String())
+
 }
